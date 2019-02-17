@@ -1,55 +1,50 @@
-extern crate libc;
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
 
-use self::libc::{c_int, c_ulong, c_char, c_uchar, c_void, useconds_t, wchar_t};
-use std::{ptr};
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-type Window = c_int;
-type Xdo = *const c_void;
+use std::io;
+use std::io::Read;
+use std::fs::File;
 
-// see /usr/include/X11/X.h
-type KeyCode = c_uchar;
-type XID = c_ulong;
-type KeySym = XID;
-
-const CURRENT_WINDOW: c_int = 0;
-
-#[repr(C)]
-struct CharcodemapT {
-    key: wchar_t, // the letter for this key, like 'a'
-    code: KeyCode, // the keycode that this key is on
-    symbol: KeySym, // the symbol representing this key
-    group: c_int, // the keyboard group that has this key in it
-    modmask: c_int, // the modifiers to apply when sending this key
-    // if this key need to be bound at runtime because it does not
-    // exist in the current keymap, this will be set to 1.
-    needs_binding: c_int,
+fn read_input_event(f: &mut File) -> io::Result<(input_event)> {
+    const sz: usize = std::mem::size_of::<input_event>();
+    let mut buf = [0; sz];
+    f.read_exact(&mut buf)?;
+    let ie: input_event = unsafe { std::mem::transmute(buf) };
+    Ok(ie)
 }
 
-#[link(name="xdo")]
-extern "C" {
-    fn xdo_new(display: *const c_char) -> Xdo;
-    fn xdo_free(xdo: Xdo);
-
-    fn xdo_send_keysequence_window_list_do(
-        xdo: Xdo,
-        window: Window,
-        keys: *const CharcodemapT,
-        nkeys: c_int,
-        pressed: c_int,
-        modifier: *const c_int,
-        delay: useconds_t,
-    ) -> c_int;
+fn dump_input_event(fname: &str) {
+    let mut f = File::open(fname).expect("open failed.");
+    loop {
+        match read_input_event(&mut f).expect("read error.") {
+            input_event { type_, code, value, .. } if type_ as u32 == EV_KEY => {
+                match code as u32 {
+                    KEY_DOWN => {
+                        if value != 0 {
+                            println!("down")
+                        }
+                    }
+                    KEY_UP => {
+                        if value != 0 {
+                            println!("up")
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn main() {
-    unsafe {
-        let xdo = xdo_new(ptr::null());
-        loop {
-            let charcodemap = CharcodemapT{};
-            let a = xdo_send_keysequence_window_list_do(xdo, CURRENT_WINDOW, &charcodemap, 1, 1, &1, 1);
-            println!("... {}", charcodemap.key);
-        }
-        xdo_free(xdo);
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Usage: {} /dev/input/event4", &args[0]);
+        return;
     }
-    println!("hello");
+    dump_input_event(&args[1]);
 }

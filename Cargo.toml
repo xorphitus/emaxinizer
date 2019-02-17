@@ -4,5 +4,8 @@ version = "0.1.0"
 authors = ["xorphitus <xorphitus@gmail.com>"]
 edition = "2018"
 
+[build-dependencies]
+bindgen = "0.47.1"
+
 [dependencies]
 libc = "0.2.48"
