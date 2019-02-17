@@ -1,10 +1,15 @@
 extern crate libc;
 
-use self::libc::{c_int, c_char, c_void, useconds_t, wchar_t};
+use self::libc::{c_int, c_ulong, c_char, c_uchar, c_void, useconds_t, wchar_t};
 use std::{ptr};
 
 type Window = c_int;
 type Xdo = *const c_void;
+
+// see /usr/include/X11/X.h
+type KeyCode = c_uchar;
+type XID = c_ulong;
+type KeySym = XID;
 
 const CURRENT_WINDOW: c_int = 0;
 
